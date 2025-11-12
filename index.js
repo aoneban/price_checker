@@ -4,8 +4,6 @@ import fs from 'fs';
 import path from 'path';
 import 'dotenv/config';
 
-import puppeteer from "puppeteer";
-
 // URL product
 const URL =
   'https://www.ceneo.pl/170343896?fto=533694621&se=HjaMfoC7jA0DKNTqpkT6v3fmh46Jrlju';
