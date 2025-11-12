@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import 'dotenv/config';
 
+import puppeteer from "puppeteer";
 
 // URL product
 const URL =
@@ -23,7 +24,19 @@ const transporter = nodemailer.createTransport({
 
 // Function for receiving price with Puppeteer
 async function getPrice() {
-  const browser = await puppeteer.launch({ headless: true });
+  const browser = await puppeteer.launch({
+  headless: true,         
+  args: [
+    "--no-sandbox",
+    "--disable-setuid-sandbox",
+    "--disable-dev-shm-usage",
+    "--disable-accelerated-2d-canvas",
+    "--disable-gpu",
+    "--no-first-run",
+    "--no-zygote",
+    "--single-process"
+  ],
+});
   const page = await browser.newPage();
 
   // Set up User-Agent, to not to lock
