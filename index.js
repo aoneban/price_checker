@@ -43,7 +43,7 @@ async function getPrice() {
   );
 
   // Navigation with extended timeout
-  await page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
+  await page.goto(URL, { waitUntil: 'networkidle2', timeout: 60000 });
 
   // Waiting for a block with price
   await page.waitForSelector('span.price-format', { timeout: 60000 });
