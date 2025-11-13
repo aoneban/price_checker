@@ -1,13 +1,14 @@
-import puppeteer from 'puppeteer';
 import nodemailer from 'nodemailer';
 import fs from 'fs';
 import path from 'path';
 import 'dotenv/config';
+import axios from 'axios';
+import * as cheerio from 'cheerio';
 
 
 // URL product
 const URL =
-  'https://www.ceneo.pl/170343896?fto=533694621&se=HjaMfoC7jA0DKNTqpkT6v3fmh46Jrlju';
+  'https://www.ceneo.pl/170343896';
 
 // Path to the file contains last price
 const PRICE_FILE = path.resolve('./price.json');
@@ -23,52 +24,30 @@ const transporter = nodemailer.createTransport({
 
 // Function for receiving price with Puppeteer
 async function getPrice() {
-  const browser = await puppeteer.launch({ headless: true });
-  const page = await browser.newPage();
+  try {
+    // Loading HTML pages
+    const { data } = await axios.get(URL, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+      }
+    });
 
-  // Set up User-Agent, to not to lock
-  await page.setUserAgent(
-    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-  );
+    // Loading HTML into Cheerio
+    const $ = cheerio.load(data);
 
-  // Navigation with extended timeout
-  await page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
+    // Extract the price from the specified element
+    const priceElement = $('p.my-0:contains("Aktualnie najniższa cena") .price');
+    const value = priceElement.find('.value').text().trim();
+    const penny = priceElement.find('.penny').text().trim();
 
-  // Waiting for a block with price
-  await page.waitForSelector('span.price-format', { timeout: 60000 });
+    // Combining the integer and fractional parts
+    const price = `${value}${penny}`.replace(',', '.');
 
-  // Extract price form this block "Aktualnie najniższa cena"
-  const priceText = await page.evaluate(() => {
-    // Looking for all the elements which contain this text "Aktualnie najniższa cena:"
-    const labels = Array.from(document.querySelectorAll('body *')).filter(
-      (el) => el.textContent.includes('Aktualnie najniższa cena')
-    );
-
-    if (!labels.length) return null;
-
-    const label = labels[0];
-
-    // Search inside of this element span.price
-    const priceBox =
-      label.querySelector('span.price') ||
-      label.parentElement.querySelector('span.price');
-    if (!priceBox) return null;
-
-    const value = priceBox.querySelector('.value')?.textContent.trim();
-    const penny = priceBox
-      .querySelector('.penny')
-      ?.textContent.trim()
-      .replace(',', '.');
-
-    return value && penny ? `${value}${penny}` : null;
-  });
-
-  await browser.close();
-
-  if (!priceText)
-    throw new Error("Unable to find price in block 'Aktualnie najniższa cena'");
-
-  return parseFloat(priceText);
+    console.log('Price found:', price);
+    return price;
+  } catch (error) {
+    console.error('Error getting price:', error.message);
+  }
 }
 
 // Function of sending a letter
@@ -108,8 +87,8 @@ async function checkPrice() {
 
     // If price didn't change - send email
     if (newPrice !== oldPrice) {
-      console.log(`Price changed: ${oldPrice} → ${newPrice}`);
-      await sendEmail(newPrice);
+      console.log(`Price changed: ${oldPrice} → ${newPrice} PLN`);
+      await sendEmail(newPrice, `Price changed: ${oldPrice} → ${newPrice} PLN`);
       fs.writeFileSync(
         PRICE_FILE,
         JSON.stringify({ price: newPrice }, null, 2),
@@ -117,7 +96,7 @@ async function checkPrice() {
       );
     } else {
       console.log(`Price didn't change: ${newPrice}`);
-      await sendEmail(newPrice, `Price didn't change (remains ${newPrice})`);
+      await sendEmail(newPrice, `Price didn't change (remains ${newPrice} PLN)`);
     }
   } catch (err) {
     console.error('Error checking price:', err.message);
@@ -126,4 +105,4 @@ async function checkPrice() {
 
 // Launch every ~~!~~ minutes
 checkPrice();
-setInterval(checkPrice, 5 * 60 * 1000);
+setInterval(checkPrice, 60 * 60 * 1000);
