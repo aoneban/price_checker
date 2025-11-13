@@ -137,4 +137,4 @@ async function checkPrice() {
 
 // Launch every ~~!~~ minutes
 checkPrice();
-setInterval(checkPrice, 2 * 60 * 1000);
+setInterval(checkPrice, 10 * 60 * 1000);
