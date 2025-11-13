@@ -4,6 +4,7 @@ import fs from 'fs';
 import path from 'path';
 import 'dotenv/config';
 
+
 // URL product
 const URL =
   'https://www.ceneo.pl/170343896?fto=533694621&se=HjaMfoC7jA0DKNTqpkT6v3fmh46Jrlju';
@@ -22,19 +23,7 @@ const transporter = nodemailer.createTransport({
 
 // Function for receiving price with Puppeteer
 async function getPrice() {
-  const browser = await puppeteer.launch({
-  headless: true,         
-  args: [
-    "--no-sandbox",
-    "--disable-setuid-sandbox",
-    "--disable-dev-shm-usage",
-    "--disable-accelerated-2d-canvas",
-    "--disable-gpu",
-    "--no-first-run",
-    "--no-zygote",
-    "--single-process"
-  ],
-});
+  const browser = await puppeteer.launch({ headless: true });
   const page = await browser.newPage();
 
   // Set up User-Agent, to not to lock
@@ -43,7 +32,7 @@ async function getPrice() {
   );
 
   // Navigation with extended timeout
-  await page.goto(URL, { waitUntil: 'networkidle2', timeout: 60000 });
+  await page.goto(URL, { waitUntil: 'domcontentloaded', timeout: 60000 });
 
   // Waiting for a block with price
   await page.waitForSelector('span.price-format', { timeout: 60000 });
