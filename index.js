@@ -5,10 +5,8 @@ import 'dotenv/config';
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 
-
 // URL product
-const URL =
-  'https://www.ceneo.pl/170343896';
+const URL = 'https://www.ceneo.pl/170343896';
 
 // Path to the file contains last price
 const PRICE_FILE = path.resolve('./price.json');
@@ -18,9 +16,11 @@ const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
     user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS 
+    pass: process.env.EMAIL_PASS,
   },
 });
+
+var nameProduct;
 
 // Function for receiving price with Puppeteer
 async function getPrice() {
@@ -28,15 +28,19 @@ async function getPrice() {
     // Loading HTML pages
     const { data } = await axios.get(URL, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-      }
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+      },
     });
 
     // Loading HTML into Cheerio
     const $ = cheerio.load(data);
+    nameProduct = await getNameProduct($);
 
     // Extract the price from the specified element
-    const priceElement = $('p.my-0:contains("Aktualnie najniższa cena") .price');
+    const priceElement = $(
+      'p.my-0:contains("Aktualnie najniższa cena") .price'
+    );
     const value = priceElement.find('.value').text().trim();
     const penny = priceElement.find('.penny').text().trim();
 
@@ -50,12 +54,17 @@ async function getPrice() {
   }
 }
 
+async function getNameProduct(item) {
+  const h1Text = item('h1').first().text().trim();
+  return h1Text;
+}
+
 // Function of sending a letter
 async function sendEmail(newPrice, message) {
   const mailOptions = {
     from: process.env.EMAIL_USER,
     to: process.env.EMAIL_USER,
-     subject: "💰 Check price for Ceneo",
+    subject: `💰 Check price for Ceneo: ${nameProduct}`,
     text: `${message}\nCurrent price: ${newPrice} PLN\n${URL}`,
   };
 
@@ -96,7 +105,10 @@ async function checkPrice() {
       );
     } else {
       console.log(`Price didn't change: ${newPrice}`);
-      await sendEmail(newPrice, `Price didn't change (remains ${newPrice} PLN)`);
+      await sendEmail(
+        newPrice,
+        `💲 Price didn't change 💲 (remains ${newPrice} PLN)`
+      );
     }
   } catch (err) {
     console.error('Error checking price:', err.message);
