@@ -20,8 +20,6 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-var nameProduct;
-
 // Function for receiving price with Puppeteer
 async function getPrice() {
   try {
@@ -35,7 +33,7 @@ async function getPrice() {
 
     // Loading HTML into Cheerio
     const $ = cheerio.load(data);
-    nameProduct = await getNameProduct($);
+    const nameProduct = getNameProduct($);
 
     // Extract the price from the specified element
     const priceElement = $(
@@ -48,19 +46,21 @@ async function getPrice() {
     const price = `${value}${penny}`.replace(',', '.');
 
     console.log('Price found:', price);
-    return price;
+    console.log('Name product:', nameProduct);
+    return { price, nameProduct };
   } catch (error) {
     console.error('Error getting price:', error.message);
   }
 }
 
-async function getNameProduct(item) {
+// Function of getting a title
+function getNameProduct(item) {
   const h1Text = item('h1').first().text().trim();
   return h1Text;
 }
 
 // Function of sending a letter
-async function sendEmail(newPrice, message) {
+async function sendEmail(newPrice, message, nameProduct) {
   const mailOptions = {
     from: process.env.EMAIL_USER,
     to: process.env.EMAIL_USER,
@@ -85,29 +85,37 @@ async function checkPrice() {
 
     // If first launch — save price and won't send a letter
     if (oldPrice === null) {
-      console.log(`First launch. Save price: ${newPrice}`);
+      console.log(`First launch. Save price: ${newPrice.price}`);
       fs.writeFileSync(
         PRICE_FILE,
-        JSON.stringify({ price: newPrice }, null, 2),
+        JSON.stringify({ price: newPrice.price }, null, 2),
         'utf-8'
       );
       return;
     }
 
     // If price didn't change - send email
-    if (newPrice !== oldPrice) {
-      console.log(`Price changed: ${oldPrice} → ${newPrice} PLN`);
-      await sendEmail(newPrice, `Price changed: ${oldPrice} → ${newPrice} PLN`);
+    if (newPrice.price !== oldPrice) {
+      console.log(
+        `${newPrice.nameProduct}\nPrice changed: ${oldPrice} → ${newPrice.price} PLN`,
+        newPrice.nameProduct
+      );
+      await sendEmail(
+        newPrice.price,
+        `${newPrice.nameProduct}\nPrice changed: ${oldPrice} → ${newPrice.price} PLN`,
+        newPrice.nameProduct
+      );
       fs.writeFileSync(
         PRICE_FILE,
-        JSON.stringify({ price: newPrice }, null, 2),
+        JSON.stringify({ price: newPrice.price }, null, 2),
         'utf-8'
       );
     } else {
-      console.log(`Price didn't change: ${newPrice}`);
+      console.log(`Price didn't change: ${newPrice.price}`);
       await sendEmail(
-        newPrice,
-        `💲 Price didn't change 💲 (remains ${newPrice} PLN)`
+        newPrice.price,
+        `${newPrice.nameProduct}\n💲 Price didn't change 💲 (remains ${newPrice.price} PLN)`,
+        newPrice.nameProduct
       );
     }
   } catch (err) {
